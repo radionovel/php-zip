@@ -42,6 +42,7 @@ use Symfony\Component\Finder\SplFileInfo as SymfonySplFileInfo;
  */
 class ZipFile implements ZipFileInterface
 {
+    const OUTPUT_STREAM_CHUNK_SIZE = 1048576;
     /** @var array default mime types */
     private static $defaultMimeTypes = [
         'zip' => 'application/zip',
@@ -54,6 +55,8 @@ class ZipFile implements ZipFileInterface
         'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'xpi' => 'application/x-xpinstall',
     ];
+
+    protected $outputStreamChunkSize;
 
     /** @var ZipContainer */
     protected $zipContainer;
@@ -1696,7 +1699,12 @@ class ZipFile implements ZipFileInterface
         rewind($handle);
 
         try {
-            echo stream_get_contents($handle, -1, 0);
+            $offset = 0;
+            while ($buffer = stream_get_contents($handle, $this->getOutputStreamChunkSize(), $offset)) {
+                $offset += $this->getOutputStreamChunkSize();
+                echo  $buffer;
+                flush();
+            }
         } finally {
             fclose($handle);
         }
@@ -2000,5 +2008,13 @@ class ZipFile implements ZipFileInterface
     public function rewind()
     {
         reset($this->zipContainer->getEntries());
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getOutputStreamChunkSize()
+    {
+        return $this->outputStreamChunkSize ?: self::OUTPUT_STREAM_CHUNK_SIZE;
     }
 }
